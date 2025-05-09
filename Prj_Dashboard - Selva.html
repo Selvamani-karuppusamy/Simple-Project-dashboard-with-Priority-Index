@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background-color: #f4f4f4; }
+    .green { background-color: #a5f7a5; }
+    .amber { background-color: #ffd27f; }
+    .red { background-color: #ff9e9e; }
+    .actions button { margin: 0 5px; }
+    #project-form input, #project-form button { margin: 5px; }
+  </style>
+</head>
+<body>
+  <h2>Project Dashboard</h2>
+  <form id="project-form">
+    <input type="text" placeholder="Project ID" id="projectId" required />
+    <input type="text" placeholder="Vehicle Type" id="vehicleType" required />
+    <input type="date" id="deliveryDate" required />
+    <button type="submit">Add Project</button>
+  </form>
+
+  <table id="project-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Project ID</th>
+        <th>Vehicle Type</th>
+        <th>Delivery Date</th>
+        <th>Priority</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    let projects = JSON.parse(localStorage.getItem("projects")) || [];
+
+    function saveProjects() {
+      localStorage.setItem("projects", JSON.stringify(projects));
+    }
+
+    function getPriorityIndex() {
+      const dates = [...projects].map(p => new Date(p.deliveryDate)).sort((a, b) => a - b);
+      return date => dates.findIndex(d => d.getTime() === new Date(date).getTime()) + 1;
+    }
+
+    function renderTable() {
+      const tbody = document.querySelector("#project-table tbody");
+      tbody.innerHTML = "";
+      const getPriority = getPriorityIndex();
+      const now = new Date();
+
+      projects.forEach((proj, index) => {
+        const tr = document.createElement("tr");
+        const daysLeft = (new Date(proj.deliveryDate) - now) / (1000 * 60 * 60 * 24);
+        let colorClass = "";
+        if (daysLeft <= 15) colorClass = "red";
+        else if (daysLeft <= 30) colorClass = "amber";
+        else colorClass = "green";
+
+        tr.innerHTML = `
+          <td>${index + 1}</td>
+          <td>${proj.projectId}</td>
+          <td>${proj.vehicleType}</td>
+          <td class="${colorClass}">${proj.deliveryDate}</td>
+          <td>${getPriority(proj.deliveryDate)}</td>
+          <td class="actions">
+            <button onclick="editProject(${index})">Edit</button>
+            <button onclick="deleteProject(${index})">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById("project-form").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const projectId = document.getElementById("projectId").value;
+      const vehicleType = document.getElementById("vehicleType").value;
+      const deliveryDate = document.getElementById("deliveryDate").value;
+
+      const isEdit = this.dataset.index;
+      if (isEdit !== undefined) {
+        projects[isEdit] = { projectId, vehicleType, deliveryDate };
+        delete this.dataset.index;
+      } else {
+        projects.push({ projectId, vehicleType, deliveryDate });
+      }
+      saveProjects();
+      renderTable();
+      this.reset();
+    });
+
+    function editProject(index) {
+      const proj = projects[index];
+      document.getElementById("projectId").value = proj.projectId;
+      document.getElementById("vehicleType").value = proj.vehicleType;
+      document.getElementById("deliveryDate").value = proj.deliveryDate;
+      document.getElementById("project-form").dataset.index = index;
+    }
+
+    function deleteProject(index) {
+      if (confirm("Are you sure you want to delete this project?")) {
+        projects.splice(index, 1);
+        saveProjects();
+        renderTable();
+      }
+    }
+
+    renderTable();
+  </script>
+</body>
+</html>
